@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词汇管理</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; background-color: #f4f4f9; color: #333; }
+        h1, h2 { color: #444; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #e9e9f5; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        form { margin-top: 2rem; padding: 1rem; border: 1px solid #ddd; border-radius: 5px; background-color: #fff; }
+        input, select, button { padding: 8px; margin-top: 5px; border-radius: 3px; border: 1px solid #ccc; }
+        button { cursor: pointer; background-color: #4CAF50; color: white; border: none; }
+        button.delete { background-color: #f44336; }
+        button.edit { background-color: #008CBA; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px;}
+    </style>
+</head>
+<body>
+
+    <h1>词汇管理</h1>
+
+    
+    <h2>添加 / 编辑词汇</h2>
+    <form id="word-form">
+        <input type="hidden" id="word-id">
+        <div class="form-group">
+            <label for="term">单词 (Term)</label>
+            <input type="text" id="term" required>
+        </div>
+        <div class="form-group">
+            <label for="translation">翻译 (Translation)</label>
+            <input type="text" id="translation" required>
+        </div>
+        <div class="form-group">
+            <label for="difficulty">难度 (Difficulty)</label>
+            <select id="difficulty" required>
+                <option value="Basic">基础 (Basic)</option>
+                <option value="CET-4">四级 (CET-4)</option>
+                <option value="CET-6">六级 (CET-6)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="phonetic">音标 (Phonetic)</label>
+            <input type="text" id="phonetic">
+        </div>
+        <div class="form-group">
+            <label for="definition">英文释义 (Definition)</label>
+            <input type="text" id="definition">
+        </div>
+        <div class="form-group">
+            <label for="etymology">词源 (Etymology)</label>
+            <input type="text" id="etymology">
+        </div>
+        <div class="form-group">
+            <label for="example">例句 (Example)</label>
+            <input type="text" id="example">
+        </div>
+        <div class="form-group">
+            <label for="exampleTranslation">例句翻译 (Example Translation)</label>
+            <input type="text" id="exampleTranslation">
+        </div>
+        <div class="form-group">
+            <label for="tags">标签 (Tags, 用逗号分隔)</label>
+            <input type="text" id="tags">
+        </div>
+        <button type="submit">保存词汇</button>
+    </form>
+
+  
+    <h2>词汇列表</h2>
+    <table id="words-table">
+        <thead>
+            <tr>
+                <th>单词</th>
+                <th>翻译</th>
+                <th>难度</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        const API_URL = '/api/words';
+        const form = document.getElementById('word-form');
+        const tableBody = document.querySelector('#words-table tbody');
+
+
+        //获取所有单词 然后都在表格显示
+        async function fetchAndRenderWords() {
+            try {
+                const response = await fetch(API_URL);
+                const words = await response.json();
+                tableBody.innerHTML = ''; 
+                words.forEach(word => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${word.term}</td>
+                        <td>${word.translation}</td>
+                        <td>${word.difficulty}</td>
+                        <td>
+                            <button class="edit" onclick="editWord('${word.id}')">编辑</button>
+                            <button class="delete" onclick="deleteWord('${word.id}')">删除</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('获取词汇列表失败:', error);
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('word-id').value;
+            const term = document.getElementById('term').value;
+            const translation = document.getElementById('translation').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const phonetic = document.getElementById('phonetic').value;
+            const definition = document.getElementById('definition').value;
+            const etymology = document.getElementById('etymology').value;
+            const example = document.getElementById('example').value;
+            const exampleTranslation = document.getElementById('exampleTranslation').value;
+            const tags = document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+
+            const wordData = { term, translation, difficulty, phonetic, definition, etymology, example, exampleTranslation, tags };
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_URL}/${id}` : API_URL;
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(wordData),
+                });
+
+                if (!response.ok) {
+                    // 如果是服务的特定信息就返回 查看一手
+                    if (response.status === 409) {
+                        const errorData = await response.json();
+                        alert(`错误: ${errorData.error}`);
+                    } else {
+                        throw new Error('保存词汇失败');
+                    }
+                    return; 
+                }
+
+                form.reset();
+                document.getElementById('word-id').value = '';
+                await fetchAndRenderWords();
+
+            } catch (error) {
+                console.error('保存词汇时出错:', error);
+                alert(error.message); //通用
+            }
+        });
+
+        window.editWord = async (id) => {
+            try {
+                const response = await fetch(`${API_URL}`);
+                const words = await response.json();
+                const word = words.find(w => w.id === id);
+
+                if (word) {
+                    document.getElementById('word-id').value = word.id;
+                    document.getElementById('term').value = word.term;
+                    document.getElementById('translation').value = word.translation;
+                    document.getElementById('difficulty').value = word.difficulty;
+                    document.getElementById('phonetic').value = word.phonetic || '';
+                    document.getElementById('definition').value = word.definition || '';
+                    document.getElementById('etymology').value = word.etymology || '';
+                    document.getElementById('example').value = word.example || '';
+                    document.getElementById('exampleTranslation').value = word.exampleTranslation || '';
+                    document.getElementById('tags').value = (word.tags || []).join(', ');
+                    window.scrollTo(0, 0); 
+                }
+            } catch (error) {
+                console.error('获取待编辑词汇失败:', error);
+            }
+        };
+        
+        // 删除
+        window.deleteWord = async (id) => {
+            if (!confirm('你确定要删除这个词汇吗？')) {
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    await fetchAndRenderWords();
+                } else {
+                    throw new Error('删除词汇失败');
+                }
+            } catch (error) {
+                console.error('删除词汇时出错:', error);
+            }
+        };
+
+        //初加载
+        fetchAndRenderWords();
+    </script>
+
+</body>
+</html>
