@@ -45,14 +45,12 @@ npm run dev
   * 核心框架: React
   * 构建工具: Vite
   * 编程语言: TypeScript
-  * 样式: Tailwind CSS
   * 动画库: Framer Motion
   * 图标: Lucide React
-  * AI 功能: Google GenAI SDK (是的 我们已经在Demo中引入 但因为特殊原因我们并没有使用它)
+  * AI 功能: Google GenAI SDK
 
 **后端：**
    * 核心框架: Express.js
-   * 数据库 ORM(对象关系映射): Prisma
    * 数据库: SQLite (在开发环境中使用)
    * 编程语言: TypeScript
 
@@ -77,7 +75,7 @@ npm run dev
 ### ✨ 新功能 (New Features)
 
 *   **完整的用户系统**: 新增了用户 **登录、注册与密码找回** 功能 (`AuthScreen.tsx`)，为实现个性化学习路径和数据同步奠定了基础。
-*   **AI 助记功能正式上线**: 我们现在真正地集成了 Gemini AI！新增 **“词源助记”** 功能，利用 AI 帮助用户更科学、高效地记忆单词。
+*   **AI 功能正式上线**: 值得一提的是我们终于真正地集成了AI；还记得每个关卡开始的故事吗？它将由Gemini-3-flash呈现。
     *   **如何启用**: 只需在项目根目录创建 `.env.local` 文件，并填入您的 `VITE_GEMINI_API_KEY="YOUR_API_KEY"` 即可体验。
 *   **“勋章”道具系统**: 引入了全新的 **“勋章”** 道具。玩家可以通过完成挑战获得，并用它来解锁后续的故事章节和关卡，极大地增强了游戏的可玩性。
 
