@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词库管理后台</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>词库管理</h1>
+
+        <div class="form-container">
+            <h2>添加 / 编辑单词</h2>
+            <form id="word-form">
+                <input type="hidden" id="word-id">
+                <div class="grid">
+                    <input type="text" id="term" placeholder="单词 (term)" required>
+                    <input type="text" id="phonetic" placeholder="音标 (phonetic)">
+                    <select id="difficulty" required>
+                        <option value="Basic">Basic</option>
+                        <option value="CET-4">CET-4</option>
+                        <option value="CET-6">CET-6</option>
+                        <option value="IELTS">IELTS</option>
+                        <option value="TOEFL">TOEFL</option>
+                    </select>
+                    <input type="text" id="translation" placeholder="中文翻译 (translation)" required>
+                    <input type="text" id="tags" placeholder="标签 (tags, 逗号分隔)">
+                </div>
+                <textarea id="definition" placeholder="英文释义 (definition)"></textarea>
+                <textarea id="example" placeholder="例句 (example)"></textarea>
+                <textarea id="exampleTranslation" placeholder="例句翻译 (exampleTranslation)"></textarea>
+                <textarea id="etymology" placeholder="词源/记忆口诀 (etymology)"></textarea>
+                <div class="buttons">
+                    <button type="submit">保存</button>
+                    <button type="button" id="clear-form">清空</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-container">
+            <h2>单词列表</h2>
+            <table id="words-table">
+                <thead>
+                    <tr>
+                        <th>单词</th>
+                        <th>翻译</th>
+                        <th>难度</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Words will be populated here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

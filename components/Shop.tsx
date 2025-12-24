@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Check, ShoppingBag, Zap, Heart, FlaskConical } from 'lucide-react';
+import { ArrowLeft, Lock, Check, ShoppingBag, Zap, Heart, FlaskConical, Trophy, Package } from 'lucide-react';
 import { SkinId } from '../types';
 import Character from './Character';
 
@@ -8,6 +8,8 @@ interface Props {
   gems: number;
   ownedSkins: SkinId[];
   equippedSkin: SkinId;
+  potions: number;
+  medals: number;
   onClose: () => void;
   onBuy: (skin: SkinId, price: number) => void;
   onBuyItem: (id: string, price: number) => void;
@@ -23,10 +25,11 @@ const SKINS: { id: SkinId; name: string; price: number; desc: string }[] = [
 ];
 
 const ITEMS = [
-    { id: 'potion', name: '生命恢复药水', price: 100, desc: '战斗失败时复活+1HP', icon: <FlaskConical size={24} className="text-pink-500" /> }
+    { id: 'potion', name: '生命恢复药水', price: 100, desc: '战斗失败时复活+1HP', icon: <FlaskConical size={24} className="text-pink-500" /> },
+    { id: 'medal', name: '补给勋章', price: 2000, desc: '用于解锁后续取经章节', icon: <Trophy size={24} className="text-orange-500" /> }
 ];
 
-const Shop: React.FC<Props> = ({ gems, ownedSkins, equippedSkin, onClose, onBuy, onBuyItem, onEquip }) => {
+const Shop: React.FC<Props> = ({ gems, ownedSkins, equippedSkin, potions, medals, onClose, onBuy, onBuyItem, onEquip }) => {
   const [tab, setTab] = useState<'skins' | 'items'>('skins');
 
   return (
@@ -78,44 +81,18 @@ const Shop: React.FC<Props> = ({ gems, ownedSkins, equippedSkin, onClose, onBuy,
                 animate={{ opacity: 1, y: 0 }}
                 className={`bg-white rounded-3xl p-4 flex items-center gap-4 border-2 shadow-sm ${isEquipped ? 'border-pink-500 ring-2 ring-pink-100' : 'border-white'}`}
               >
-                {/* Preview */}
                 <div className="bg-slate-50 rounded-2xl w-24 h-24 flex items-center justify-center shrink-0">
                   <div className="scale-[0.6]">
                     <Character skin={skin.id} emotion="happy" />
                   </div>
                 </div>
-
-                {/* Info */}
                 <div className="flex-1">
                   <h3 className="font-bold text-slate-800">{skin.name}</h3>
                   <p className="text-xs text-slate-400 mb-2">{skin.desc}</p>
-                  
                   {isOwned ? (
-                    <button 
-                      onClick={() => onEquip(skin.id)}
-                      disabled={isEquipped}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold w-full transition-all ${
-                        isEquipped 
-                          ? 'bg-green-100 text-green-600 cursor-default' 
-                          : 'bg-slate-800 text-white hover:bg-slate-700'
-                      }`}
-                    >
-                      {isEquipped ? <span className="flex items-center justify-center gap-1"><Check size={12}/> 已装备</span> : '装备'}
-                    </button>
+                    <button onClick={() => onEquip(skin.id)} disabled={isEquipped} className={`px-4 py-2 rounded-xl text-xs font-bold w-full ${isEquipped ? 'bg-green-100 text-green-600' : 'bg-slate-800 text-white'}`}>{isEquipped ? '已装备' : '装备'}</button>
                   ) : (
-                    <button 
-                      onClick={() => onBuy(skin.id, skin.price)}
-                      disabled={!canAfford}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold w-full flex items-center justify-center gap-1 transition-all ${
-                        canAfford 
-                          ? 'bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-200' 
-                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {canAfford ? '购买' : '宝石不足'} 
-                      <span className="font-normal opacity-80">| {skin.price}</span>
-                      <div className="w-2 h-2 bg-blue-200 rounded-full inline-block" />
-                    </button>
+                    <button onClick={() => onBuy(skin.id, skin.price)} disabled={!canAfford} className={`px-4 py-2 rounded-xl text-xs font-bold w-full ${canAfford ? 'bg-pink-500 text-white' : 'bg-slate-200 text-slate-400'}`}>购买 | {skin.price}</button>
                   )}
                 </div>
               </motion.div>
@@ -124,39 +101,27 @@ const Shop: React.FC<Props> = ({ gems, ownedSkins, equippedSkin, onClose, onBuy,
 
           {tab === 'items' && ITEMS.map((item) => {
             const canAfford = gems >= item.price;
+            const ownedCount = item.id === 'potion' ? potions : (item.id === 'medal' ? medals : 0);
+            
             return (
-                <motion.div 
-                    key={item.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-3xl p-4 flex items-center gap-4 border-2 border-white shadow-sm"
-                >
-                    <div className="bg-pink-50 rounded-2xl w-20 h-20 flex items-center justify-center shrink-0 border border-pink-100">
-                        {item.icon}
-                    </div>
+                <motion.div key={item.id} className="bg-white rounded-3xl p-4 flex items-center gap-4 border-2 border-white shadow-sm relative overflow-hidden">
+                    <div className="bg-pink-50 rounded-2xl w-20 h-20 flex items-center justify-center shrink-0 border border-pink-100">{item.icon}</div>
                     <div className="flex-1">
-                        <h3 className="font-bold text-slate-800">{item.name}</h3>
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-slate-800">{item.name}</h3>
+                          <div className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                             <Package size={10} className="text-slate-400" />
+                             <span className="text-[10px] font-black text-slate-600">拥有: {ownedCount}</span>
+                          </div>
+                        </div>
                         <p className="text-xs text-slate-400 mb-2">{item.desc}</p>
-                        <button 
-                            onClick={() => onBuyItem(item.id, item.price)}
-                            disabled={!canAfford}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold w-full flex items-center justify-center gap-1 transition-all ${
-                                canAfford 
-                                ? 'bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-200' 
-                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                            }`}
-                        >
-                            {canAfford ? '购买' : '宝石不足'}
-                            <span className="font-normal opacity-80">| {item.price}</span>
-                            <div className="w-2 h-2 bg-blue-200 rounded-full inline-block" />
-                        </button>
+                        <button onClick={() => onBuyItem(item.id, item.price)} disabled={!canAfford} className={`px-4 py-2 rounded-xl text-xs font-bold w-full ${canAfford ? 'bg-pink-500 text-white shadow-md shadow-pink-100' : 'bg-slate-200 text-slate-400'}`}>购买 | {item.price}</button>
                     </div>
                 </motion.div>
             );
           })}
         </div>
       </div>
-
     </div>
   );
 };

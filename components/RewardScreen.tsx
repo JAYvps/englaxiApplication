@@ -1,10 +1,11 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Trophy, Star, ArrowRight, Skull, AlertTriangle, Zap } from 'lucide-react';
+import { Trophy, Star, ArrowRight, Skull, Zap } from 'lucide-react';
 
 interface Props {
-  onRestart: () => void;
+  onNext: () => void;
   onChallenge: () => void;
   playerLevel: number;
   earnedExp: number;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 const RewardScreen: React.FC<Props> = ({ 
-  onRestart, 
+  onNext, 
   onChallenge,
   playerLevel,
   earnedExp,
@@ -26,7 +27,6 @@ const RewardScreen: React.FC<Props> = ({
 }) => {
   const [showChallengeModal, setShowChallengeModal] = useState(false);
 
-  // 随机鼓励语句
   const victoryQuote = useMemo(() => {
     const quotes = [
       "太棒了！离大魔法师又近了一步！",
@@ -67,7 +67,6 @@ const RewardScreen: React.FC<Props> = ({
   return (
     <div className="h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-purple-600 to-indigo-900 text-white text-center relative">
       
-      {/* 挑战模式 */}
       <AnimatePresence>
         {showChallengeModal && (
             <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
@@ -79,23 +78,15 @@ const RewardScreen: React.FC<Props> = ({
                 >
                     <Skull size={48} className="text-red-500 mx-auto mb-4 animate-pulse" />
                     <h3 className="text-2xl font-black text-white mb-2 italic">⚠️ 危险警告</h3>
-                    <div className="text-slate-300 text-sm mb-6 leading-relaxed">
-                        前方检测到高能反应！<br/>
-                        <span className="text-red-400 font-bold">25个单词</span> 的连环试炼。<br/>
-                        
-                        <div className="bg-slate-700/50 p-3 rounded-lg mt-3 border border-slate-600">
-                             <div className="flex items-center justify-center gap-2 text-yellow-400 font-bold mb-1">
-                                <Trophy size={14} /> 丰厚奖励
-                             </div>
-                             <div className="text-xs text-slate-300">
-                                通关即得 <span className="text-yellow-400">+66 EXP</span> & <span className="text-blue-400">+66 GEMS</span>
-                             </div>
-                             <div className="text-xs text-green-400 mt-1 font-bold">
-                                并且接下来的地图宝石获取 x2 !
-                             </div>
-                        </div>
+                    <div className="bg-slate-700/50 p-3 rounded-lg mt-3 border border-slate-600 text-slate-300">
+                         <div className="flex items-center justify-center gap-2 text-yellow-400 font-bold mb-1">
+                            <Trophy size={14} /> 丰厚奖励
+                         </div>
+                         <div className="text-xs">
+                            通关即得 <span className="text-yellow-400">+66 EXP</span> & <span className="text-blue-400">+66 GEMS</span>
+                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3 mt-6">
                         <button 
                             onClick={() => setShowChallengeModal(false)}
                             className="py-3 rounded-xl bg-slate-700 text-slate-400 font-bold hover:bg-slate-600"
@@ -106,7 +97,7 @@ const RewardScreen: React.FC<Props> = ({
                             onClick={() => { setShowChallengeModal(false); onChallenge(); }}
                             className="py-3 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold hover:brightness-110 shadow-lg flex items-center justify-center gap-2"
                         >
-                           <SwordIcon /> 接受挑战
+                           接受挑战
                         </button>
                     </div>
                 </motion.div>
@@ -140,9 +131,8 @@ const RewardScreen: React.FC<Props> = ({
         VICTORY!
       </motion.h1>
       
-      <p className="text-purple-200 mb-8">Level Complete</p>
+      <p className="text-purple-200 mb-8 font-medium">章节试炼完成</p>
 
-      {/* */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -152,7 +142,6 @@ const RewardScreen: React.FC<Props> = ({
         <p className="text-yellow-200 text-sm font-medium">✨ {victoryQuote}</p>
       </motion.div>
 
-      {/* */}
       <div className="w-full max-w-sm grid grid-cols-2 gap-4 mb-8">
         <motion.div 
             initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.5 }}
@@ -174,7 +163,7 @@ const RewardScreen: React.FC<Props> = ({
       </div>
 
       <motion.div className="w-full max-w-xs space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
-        <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden relative">
+        <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden relative shadow-inner">
             <motion.div 
                 initial={{ width: "0%" }} 
                 animate={{ width: `${progressPercent}%` }} 
@@ -182,25 +171,24 @@ const RewardScreen: React.FC<Props> = ({
                 className="h-full bg-gradient-to-r from-pink-500 to-purple-500" 
             />
         </div>
-        <p className="text-xs text-purple-300 text-right">{currentExp} / {maxExp} EXP</p>
+        <p className="text-[10px] text-purple-300 text-right font-black uppercase tracking-widest">{currentExp} / {maxExp} EXP</p>
 
-        {/**/}
         <div className="flex flex-col gap-3 mt-6">
             <button 
-                onClick={onRestart}
-                className="w-full py-4 bg-white text-purple-900 rounded-2xl font-bold text-lg hover:bg-purple-50 transition-colors flex items-center justify-center gap-2"
+                onClick={onNext}
+                className="w-full py-4 bg-white text-purple-900 rounded-2xl font-black text-lg hover:bg-purple-50 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-900/20"
             >
-                <span>下一章</span>
+                <span>下一关</span>
                 <ArrowRight size={20} />
             </button>
             
             {showChallengeButton && (
                 <button 
                     onClick={() => setShowChallengeModal(true)}
-                    className="w-full py-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-2xl font-bold text-sm hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-2xl font-black text-sm hover:bg-red-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                     <Skull size={16} />
-                    <span>挑战关卡 (BOSS)</span>
+                    <span>挑战 BOSS 关卡</span>
                 </button>
             )}
         </div>
@@ -209,14 +197,5 @@ const RewardScreen: React.FC<Props> = ({
     </div>
   );
 };
-
-const SwordIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" />
-        <line x1="13" y1="19" x2="19" y2="13" />
-        <line x1="16" y1="16" x2="20" y2="20" />
-        <line x1="19" y1="21" x2="21" y2="19" />
-    </svg>
-);
 
 export default RewardScreen;

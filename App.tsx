@@ -1,441 +1,206 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GamePhase, LevelData, DifficultyLevel, SkinId } from './types';
-import { generateLevelContent, generateCheatList, PROLOGUE_SCRIPT, CHEAT_SCRIPT } from './services/serviceLayer';
+import { GamePhase, LevelData, DifficultyLevel, Player, Word } from './types';
+import { JOURNEY_MAP, REGION_BOSSES } from './data/journeyMap';
+import { getWords, updateUser } from './services/apiService';
+import { generatePrologue, generateReplayStory } from './services/aiService';
 import WelcomeScreen from './components/WelcomeScreen';
 import StoryMode from './components/StoryMode';
 import LearningMode from './components/LearningMode';
 import BossBattle from './components/BossBattle';
 import RewardScreen from './components/RewardScreen';
+import MapScreen from './components/MapScreen';
 import Shop from './components/Shop';
-import { ArrowLeft, Home, Trophy, FlaskConical, Zap, BookOpen } from 'lucide-react';
-
-/**为什么要{*这么写*} 因为比较炫酷 */
+import AuthScreen from './components/AuthScreen';
+import WordVault from './components/WordVault';
+import AchievementScreen from './components/AchievementScreen';
+import { Sparkles, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
-
-  const [phase, setPhase] = useState<GamePhase>(GamePhase.PROLOGUE);
+  const [phase, setPhase] = useState<GamePhase>(GamePhase.AUTH);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [vocabulary, setVocabulary] = useState<Word[]>([]);
   const [levelData, setLevelData] = useState<LevelData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [currentDifficulty, setCurrentDifficulty] = useState<DifficultyLevel>('Basic');
-  const [stageIndex, setStageIndex] = useState(0);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   
+  const [selectedRegionIdx, setSelectedRegionIdx] = useState<number | null>(null);
+  const [prologueScript, setPrologueScript] = useState<{en: string, zh: string}[]>([]);
 
-  const [playerLevel, setPlayerLevel] = useState(1);
-  const [exp, setExp] = useState(0); 
-  const [gems, setGems] = useState(0);
-  const [potions, setPotions] = useState(0);
-  
+  // Fetch all vocabulary once on initial load, only runs once
+  useEffect(() => {
+    const fetchVocabulary = async () => {
+      const words = await getWords('All', 500); // Get all words for highlighting
+      setVocabulary(words);
+    };
+    fetchVocabulary();
+  }, []);
 
-  const [gemMultiplier, setGemMultiplier] = useState(1);
-  const [isChallengeMode, setIsChallengeMode] = useState(false);
-  const [hasCompletedChallenge, setHasCompletedChallenge] = useState(false);
-  const [isCheatMode, setIsCheatMode] = useState(false);
+  const getMaxExp = (level: number) => 1000 + (level - 1) * 1500;
 
-
-  const [ownedSkins, setOwnedSkins] = useState<SkinId[]>(['default']);
-  const [equippedSkin, setEquippedSkin] = useState<SkinId>('default');
-
-  const [showExitModal, setShowExitModal] = useState(false);
-
-
-  const getMaxExp = (level: number) => {
-    if (level === 1) return 1000;
-    if (level === 2) return 2500;
-    return 2500 + (level - 2) * 1000;
-  };
-
-  const handlePrologueComplete = () => {
-    setPhase(GamePhase.WELCOME);
-  };
-
-
-
-  const startGame = async (difficulty: DifficultyLevel) => {
+  const handleLoginSuccess = async (loggedInPlayer: Player) => {
+    setPlayer(loggedInPlayer);
     setLoading(true);
-    setCurrentDifficulty(difficulty);
-    setStageIndex(0); 
-    setGemMultiplier(1); 
-    setIsChallengeMode(false);
-    setIsCheatMode(false);
-    setHasCompletedChallenge(false); 
-    
-    const data = await generateLevelContent(difficulty, 0, false);
-    setLevelData(data);
-    setLoading(false);
-    setPhase(GamePhase.STORY_INTRO);
-  };
-
-  const startChallengeLevel = async () => {
-    setLoading(true);
-    setIsChallengeMode(true);
-    setIsCheatMode(false);
-    
-    const data = await generateLevelContent(currentDifficulty, stageIndex, true);
-    setLevelData(data);
-    setLoading(false);
-    setPhase(GamePhase.STORY_INTRO);
-  };
-
-
-
-  const startCheatMode = () => {
-      setPhase(GamePhase.CHEAT_STORY);
-  };
-
-  const handleCheatStoryComplete = () => {
-      setPhase(GamePhase.CHEAT_SELECTION);
-  };
-
-  const selectCheatDifficulty = async (difficulty: DifficultyLevel) => {
-      setLoading(true);
-      setIsCheatMode(true);
-      const words = await generateCheatList(difficulty);
-      
-      setLevelData({
-          title: "高效速记",
-          introStory: [],
-          words: words,
-          bossName: "None",
-          theme: difficulty
-      });
-      setLoading(false);
-      setPhase(GamePhase.LEARNING);
-  };
-
-
-  const handleStoryComplete = () => {
-    setPhase(GamePhase.LEARNING);
-  };
-
-  const handleLearningComplete = () => {
-    if (isCheatMode) {
+    try {
+        const script = await generatePrologue();
+        setPrologueScript(script || []);
+        setPhase(GamePhase.PROLOGUE);
+    } catch (e) {
+        console.error("Prologue generation failed", e);
         setPhase(GamePhase.WELCOME);
-        setLevelData(null);
-    } else {
-        setPhase(GamePhase.BATTLE);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleUpdatePlayer = async (updatedPlayer: Player) => {
+    setPlayer(updatedPlayer); // Optimistic update for smooth UI
+    try {
+      await updateUser(updatedPlayer);
+    } catch (error) {
+      console.error("Failed to update player on backend, state might be inconsistent.", error);
+    }
+  };
+
+  const handleSelectStage = async (regionIdx: number, subIdx: number = 0) => {
+    if (!JOURNEY_MAP[regionIdx] || !player) return;
+    
+    setLoading(true);
+    setSelectedRegionIdx(regionIdx);
+    const region = JOURNEY_MAP[regionIdx];
+    const isReplay = player.completedNodes.includes(`${region.id}_${subIdx}`);
+    
+    // This logic is from the original project
+    const nodeCount = regionIdx < 3 ? 5 : regionIdx < 6 ? 8 : 10;
+    const isBossNode = subIdx === nodeCount - 1;
+
+    try {
+      const script = await generateReplayStory(region.name, isReplay);
+      let difficulty: DifficultyLevel = 'Basic';
+      if (regionIdx >= 7) difficulty = 'CET-6';
+      else if (regionIdx >= 3) difficulty = 'CET-4';
+      
+      // This is the new progressive word count feature
+      const wordCount = isBossNode ? 18 : (6 + (subIdx * 2));
+      const selectedWords = await getWords(difficulty, wordCount);
+
+      setLevelData({
+          title: `${region.name} [第 ${subIdx + 1} 关]`,
+          theme: region.location,
+          bossName: isBossNode ? (REGION_BOSSES[region.id] || "终极首领") : "小妖怪",
+          introStory: script,
+          words: selectedWords,
+          type: isBossNode ? 'boss' : 'battle',
+          isReplay: isReplay
+      });
+
+      setPhase(GamePhase.STORY_INTRO);
+    } catch (error) {
+      console.error("Stage setup failed", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleVictory = () => {
+    if (!levelData || !player) return;
+    
+    const baseNodeId = levelData.title.split(' [')[0];
+    const region = JOURNEY_MAP.find(r => r.name === baseNodeId);
+    const subIdxMatch = levelData.title.match(/第 (\d+) 关/);
+    const subIdx = subIdxMatch ? parseInt(subIdxMatch[1]) - 1 : 0;
+    const uniqueNodeId = region ? `${region.id}_${subIdx}` : "unknown";
+
+    const alreadyCompleted = player.completedNodes.includes(uniqueNodeId);
+    const expGain = levelData.isReplay ? 75 : 150;
+    const gemGain = levelData.type === 'boss' ? 150 : 50;
+
+    let newMedals = player.medals;
+    if (levelData.type === 'boss' && !alreadyCompleted) newMedals += 3;
+    
+    let newExp = player.exp + expGain;
+    let newLevel = player.level;
+    while (newExp >= getMaxExp(newLevel)) {
+      newExp -= getMaxExp(newLevel);
+      newLevel += 1;
+    }
+    
+    const updatedPlayer: Player = {
+        ...player,
+        level: newLevel,
+        exp: newExp,
+        gems: player.gems + gemGain,
+        medals: newMedals,
+        completedNodes: [...new Set([...player.completedNodes, uniqueNodeId])]
+    };
+
+    handleUpdatePlayer(updatedPlayer);
     setPhase(GamePhase.REWARD);
   };
 
-  const handleDefeat = () => {
-    setPhase(GamePhase.LEARNING);
-  };
-
-  const handleUsePotion = () => {
-      setPotions(prev => Math.max(0, prev - 1));
-  };
-
-  const handleNextChapter = async () => {
-    let earnedExp = 0;
-    let earnedGems = 50 * gemMultiplier;
-
-    if (isChallengeMode) {
-        earnedExp = 66; 
-        earnedGems = 66; 
-        setGemMultiplier(2); // 宝石*2
-        setHasCompletedChallenge(true); // 标记已经完成
-        setIsChallengeMode(false); // 重置挑战标志
-    } else {
-
-        if (currentDifficulty === 'Basic') earnedExp = 150;
-        if (currentDifficulty === 'CET-4') earnedExp = 200;
-        if (currentDifficulty === 'CET-6') earnedExp = 300;
-    }
-
-    // 2. Update State
-    setGems(prev => prev + earnedGems);
-    
-    // 3. 升级逻辑 有bug 现在不管
-    let currentExpTotal = exp + earnedExp;
-    let currentLvl = playerLevel;
-    let nextMaxExp = getMaxExp(currentLvl);
-
-    while (currentExpTotal >= nextMaxExp) {
-      currentExpTotal -= nextMaxExp;
-      currentLvl += 1;
-      nextMaxExp = getMaxExp(currentLvl);
-    }
-    
-    setPlayerLevel(currentLvl);
-    setExp(currentExpTotal);
-
-    // 4. 下一个阶段生成内容
-    setPhase(GamePhase.STORY_INTRO);
-    setLoading(true);
-    
-    const nextStage = stageIndex + 1;
-    setStageIndex(nextStage);
-
-    const data = await generateLevelContent(currentDifficulty, nextStage, false);
-    setLevelData(data);
-    setLoading(false);
-  };
-
-  const handleBackClick = () => {
-    setShowExitModal(true);
-  };
-
   const confirmExit = () => {
-    setShowExitModal(false);
+    setShowExitConfirm(false);
     setPhase(GamePhase.WELCOME);
     setLevelData(null);
-    setStageIndex(0);
-    setGemMultiplier(1);
-    setHasCompletedChallenge(false);
-    setIsCheatMode(false);
   };
-
-  const openShop = () => setPhase(GamePhase.SHOP);
-  const closeShop = () => setPhase(GamePhase.WELCOME);
   
-  const handleBuySkin = (skin: SkinId, price: number) => {
-    if (gems >= price && !ownedSkins.includes(skin)) {
-      setGems(prev => prev - price);
-      setOwnedSkins(prev => [...prev, skin]);
-    }
-  };
-
-  const handleBuyItem = (id: string, price: number) => {
-      if (gems >= price) {
-          setGems(prev => prev - price);
-          if (id === 'potion') {
-              setPotions(prev => prev + 1);
-          }
-      }
-  };
-
-  const handleEquipSkin = (skin: SkinId) => {
-    if (ownedSkins.includes(skin)) {
-      setEquippedSkin(skin);
-    }
-  };
+  if (!player) {
+    return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
-    <div className="w-full h-screen bg-pink-50 flex justify-center overflow-hidden">
-      <div className="w-full max-w-md h-full bg-white shadow-2xl overflow-hidden relative font-sans">
+    <div className="w-full h-screen bg-orange-50 flex justify-center overflow-hidden">
+      <div className="w-full max-md h-full bg-white shadow-2xl overflow-hidden relative font-sans">
         
-        {/* --- 全局标题 --- */}
-        {phase !== GamePhase.WELCOME && phase !== GamePhase.SHOP && phase !== GamePhase.PROLOGUE && phase !== GamePhase.CHEAT_SELECTION && (
-          <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-40 pointer-events-none">
-             <button 
-                onClick={handleBackClick} 
-                className="pointer-events-auto bg-white/90 backdrop-blur p-2.5 rounded-2xl shadow-sm border border-slate-100 text-slate-600 active:scale-90 transition-transform"
-             >
-               <ArrowLeft size={22} />
-             </button>
-
-             <div className="flex gap-2">
-      
-                 <div className="bg-white/90 backdrop-blur pl-2 pr-3 py-1.5 rounded-2xl shadow-sm border border-pink-100 text-slate-800 font-bold flex items-center gap-1">
-                    <FlaskConical size={14} className="text-pink-500" />
-                    <span className="text-sm">{potions}</span>
-                 </div>
-
-                 <div className="bg-white/90 backdrop-blur pl-3 pr-4 py-1.5 rounded-2xl shadow-sm border border-pink-100 text-slate-800 font-black italic flex items-center gap-2">
-                   <div className="bg-pink-500 text-white text-[10px] font-bold px-1.5 rounded-md">LV</div>
-                   <span className="text-xl text-pink-500">{playerLevel}</span>
-                 </div>
-             </div>
-          </div>
-        )}
-
+        {/* Exit Confirmation Modal (Original Logic) */}
         <AnimatePresence>
-          {showExitModal && (
-            <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-               <motion.div 
-                 initial={{ scale: 0.9, opacity: 0 }}
-                 animate={{ scale: 1, opacity: 1 }}
-                 exit={{ scale: 0.9, opacity: 0 }}
-                 className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm text-center"
-               >
-                  <div className="w-16 h-16 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Home size={32} />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">返回主页？</h3>
-                  <p className="text-slate-500 mb-8 text-sm leading-relaxed">
-                    {isCheatMode ? "秘籍修习将被中断，要返回吗？" : "这将返回到游戏开始页面。当前关卡进度将会丢失，要继续吗？"}
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                     <button 
-                       onClick={() => setShowExitModal(false)}  
-                       className="py-3 px-4 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors"
-                     >
-                       取消
-                     </button>
-                     <button 
-                       onClick={confirmExit}
-                       className="py-3 px-4 rounded-xl bg-pink-500 text-white font-bold hover:bg-pink-600 transition-colors shadow-lg shadow-pink-200"
-                     >
-                       确认退出
-                     </button>
-                  </div>
+          {showExitConfirm && (
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+               <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[2rem] p-8 w-full max-w-xs text-center shadow-2xl">
+                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={32} /></div>
+                 <h3 className="text-xl font-black text-slate-800 mb-2">返回主页？</h3>
+                 <p className="text-slate-500 text-sm mb-6 leading-relaxed">当前的修炼进度将<span className="text-red-500 font-bold">丢失</span>。确定要放弃这次修行吗？</p>
+                 <div className="grid grid-cols-2 gap-3">
+                   <button onClick={() => setShowExitConfirm(false)} className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl active:scale-95 transition-all">继续修行</button>
+                   <button onClick={confirmExit} className="py-3 bg-red-500 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-red-200">确定离开</button>
+                 </div>
                </motion.div>
-            </div>
+             </motion.div>
           )}
         </AnimatePresence>
 
-        
-        {phase === GamePhase.PROLOGUE && (
-          <StoryMode 
-            script={PROLOGUE_SCRIPT} 
-            onComplete={handlePrologueComplete} 
-          />
-        )}
-
-        {/* --- Cheat Story Screen --- */}
-        {phase === GamePhase.CHEAT_STORY && (
-            <StoryMode 
-                script={CHEAT_SCRIPT}
-                onComplete={handleCheatStoryComplete}
-            />
-        )}
-
-        
-        {phase === GamePhase.CHEAT_SELECTION && (
-            <div className="h-full bg-gradient-to-b from-indigo-900 to-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-cyan-500 rounded-full blur-[100px]" />
-                </div>
-                
-                <motion.div 
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="z-10 w-full max-w-sm space-y-6"
-                >
-                    <div className="text-center">
-                        <Zap size={64} className="text-yellow-400 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
-                        <h2 className="text-3xl font-black text-white italic mb-2">速记秘籍</h2>
-                        <p className="text-indigo-200 text-sm">选择你要强化的魔法领域</p>
-                    </div>
-
-                    <div className="space-y-4">
-                        <button 
-                            onClick={() => selectCheatDifficulty('CET-4')}
-                            className="w-full bg-white/10 backdrop-blur border border-white/20 p-6 rounded-2xl flex items-center gap-4 hover:bg-white/20 transition-all group"
-                        >
-                            <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                <BookOpen className="text-white" />
-                            </div>
-                            <div className="text-left">
-                                <h3 className="text-white font-bold text-lg">四级高频口诀</h3>
-                                <p className="text-slate-400 text-xs">CET-4 High Frequency</p>
-                            </div>
-                        </button>
-
-                        <button 
-                            onClick={() => selectCheatDifficulty('CET-6')}
-                            className="w-full bg-white/10 backdrop-blur border border-white/20 p-6 rounded-2xl flex items-center gap-4 hover:bg-white/20 transition-all group"
-                        >
-                            <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                <BookOpen className="text-white" />
-                            </div>
-                            <div className="text-left">
-                                <h3 className="text-white font-bold text-lg">六级进阶口诀</h3>
-                                <p className="text-slate-400 text-xs">CET-6 High Frequency</p>
-                            </div>
-                        </button>
-                    </div>
-
-                    <button 
-                        onClick={() => setPhase(GamePhase.WELCOME)}
-                        className="text-slate-500 text-sm font-bold mt-8 hover:text-white transition-colors"
-                    >
-                        返回主页
-                    </button>
-                </motion.div>
-            </div>
-        )}
-
-        
-        {phase === GamePhase.WELCOME && (
-          <WelcomeScreen 
-            onStart={startGame} 
-            isLoading={loading} 
-            onOpenShop={openShop}
-            level={playerLevel}
-            gems={gems}
-            currentExp={exp}
-            maxExp={getMaxExp(playerLevel)}
-            equippedSkin={equippedSkin}
-            onCheatMode={startCheatMode}
-          />
-        )}
-
-        
-        {phase === GamePhase.SHOP && (
-          <Shop 
-            gems={gems} 
-            ownedSkins={ownedSkins} 
-            equippedSkin={equippedSkin} 
-            onClose={closeShop}
-            onBuy={handleBuySkin}
-            onBuyItem={handleBuyItem}
-            onEquip={handleEquipSkin}
-          />
-        )}
-
-        {/* Loading Overlay */}
+        {/* Loading Overlay (Original Logic) */}
         <AnimatePresence>
           {loading && (
-              <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md flex items-center justify-center flex-col gap-4"
-              >
-                  <div className="relative">
-                    <div className="w-16 h-16 border-4 border-pink-100 rounded-full"></div>
-                    <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-pink-600 font-bold text-lg animate-pulse">
-                      {isChallengeMode ? 'BOSS 降临中...' : (stageIndex > 0 ? `前往下一章...` : `正在生成世界...`)}
-                    </h3>
-                  </div>
-              </motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-white flex flex-col items-center justify-center">
+               <div className="relative"><div className="w-16 h-16 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin" /><Sparkles size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-orange-400" /></div>
+               <p className="mt-4 font-black text-orange-500 animate-pulse tracking-widest uppercase text-xs">AI 正在编织命运...</p>
+            </motion.div>
           )}
         </AnimatePresence>
+        
+        {phase === GamePhase.PROLOGUE && <StoryMode title="穿越：大梦初醒" script={prologueScript} onComplete={() => setPhase(GamePhase.WELCOME)} vocabulary={vocabulary} />}
+        {phase === GamePhase.WELCOME && <WelcomeScreen onStartJourney={() => setPhase(GamePhase.MAP)} onOpenShop={() => setPhase(GamePhase.SHOP)} onOpenVault={() => setPhase(GamePhase.VAULT)} onOpenAchievements={() => setPhase(GamePhase.ACHIEVEMENTS)} level={player.level} gems={player.gems} currentExp={player.exp} maxExp={getMaxExp(player.level)} equippedSkin={player.equippedSkin}/>}
+        {phase === GamePhase.MAP && <MapScreen currentRegionIdx={selectedRegionIdx} setRegionIdx={setSelectedRegionIdx} playerMedals={player.medals} completedNodes={player.completedNodes} onSelectStage={handleSelectStage} onBack={() => setPhase(GamePhase.WELCOME)} />}
+        {phase === GamePhase.VAULT && <WordVault onBack={() => setPhase(GamePhase.WELCOME)} onStartPractice={(words) => { setLevelData({ title: "单词精刷练习", theme: "单词宝库", bossName: "练习木人桩", introStory: [{ en: "Practice makes perfect.", zh: "熟能生巧。" }], words: words, type: 'battle', isReplay: true }); setPhase(GamePhase.STORY_INTRO); }} />}
+        {phase === GamePhase.ACHIEVEMENTS && <AchievementScreen playerMedals={player.medals} completedNodesCount={player.completedNodes.length} onBack={() => setPhase(GamePhase.WELCOME)} />}
+        {phase === GamePhase.SHOP && (
+          <Shop 
+            gems={player.gems} ownedSkins={player.ownedSkins} equippedSkin={player.equippedSkin}
+            potions={player.potions} medals={player.medals}
+            onClose={() => setPhase(GamePhase.WELCOME)}
+            onBuy={(skin, price) => { if (player.gems >= price) handleUpdatePlayer({ ...player, gems: player.gems - price, ownedSkins: [...player.ownedSkins, skin] }); }}
+            onBuyItem={(itemId, price) => { if (player.gems >= price) { const updatedPlayer = { ...player, gems: player.gems - price }; if (itemId === 'potion') updatedPlayer.potions += 1; if (itemId === 'medal') updatedPlayer.medals += 1; handleUpdatePlayer(updatedPlayer); } }}
+            onEquip={(skin) => handleUpdatePlayer({ ...player, equippedSkin: skin })}
+          />
+        )}
 
-        {levelData && !loading && (
+        {levelData && (
           <>
-            {phase === GamePhase.STORY_INTRO && (
-              <StoryMode 
-                script={levelData.introStory} 
-                onComplete={handleStoryComplete} 
-              />
-            )}
-
-            {phase === GamePhase.LEARNING && (
-              <LearningMode 
-                words={levelData.words} 
-                onComplete={handleLearningComplete} 
-              />
-            )}
-
-            {phase === GamePhase.BATTLE && (
-              <BossBattle 
-                levelData={levelData} 
-                onVictory={handleVictory} 
-                onDefeat={handleDefeat}
-                potions={potions}
-                onUsePotion={handleUsePotion}
-              />
-            )}
-
-            {phase === GamePhase.REWARD && (
-              <RewardScreen 
-                onRestart={handleNextChapter}
-                onChallenge={startChallengeLevel} 
-                playerLevel={playerLevel} 
-                earnedExp={isChallengeMode ? 66 : (currentDifficulty === 'Basic' ? 150 : currentDifficulty === 'CET-4' ? 200 : 300)}
-                earnedGems={isChallengeMode ? 66 : (50 * gemMultiplier)}
-                currentExp={exp}
-                maxExp={getMaxExp(playerLevel)}
-                showChallengeButton={!hasCompletedChallenge} 
-              /> 
-            )}
+            {phase === GamePhase.STORY_INTRO && <StoryMode title={levelData.title} script={levelData.introStory} onComplete={() => levelData.type === 'story' ? handleVictory() : setPhase(GamePhase.LEARNING)} vocabulary={vocabulary} />}
+            {phase === GamePhase.LEARNING && <LearningMode words={levelData.words} onComplete={() => setPhase(GamePhase.BATTLE)} onBack={() => setShowExitConfirm(true)} />}
+            {phase === GamePhase.BATTLE && <BossBattle levelData={levelData} onVictory={handleVictory} onDefeat={() => setPhase(GamePhase.LEARNING)} onBack={() => setShowExitConfirm(true)} potions={player.potions} onUsePotion={() => { if (player.potions > 0) handleUpdatePlayer({ ...player, potions: player.potions - 1 }); }} />}
+            {phase === GamePhase.REWARD && <RewardScreen onNext={() => { setLevelData(null); setPhase(GamePhase.MAP); }} onChallenge={() => {}} playerLevel={player.level} earnedExp={levelData.isReplay ? 75 : 150} earnedGems={levelData.type === 'boss' ? 150 : 50} currentExp={player.exp} maxExp={getMaxExp(player.level)} showChallengeButton={false} />}
           </>
         )}
       </div>

@@ -1,13 +1,16 @@
+
 export enum GamePhase {
+  AUTH = 'AUTH',
   PROLOGUE = 'PROLOGUE',
   WELCOME = 'WELCOME',
+  MAP = 'MAP',
   SHOP = 'SHOP',
+  VAULT = 'VAULT',
+  ACHIEVEMENTS = 'ACHIEVEMENTS',
   STORY_INTRO = 'STORY_INTRO',
   LEARNING = 'LEARNING',
   BATTLE = 'BATTLE',
-  REWARD = 'REWARD',
-  CHEAT_STORY = 'CHEAT_STORY',
-  CHEAT_SELECTION = 'CHEAT_SELECTION'
+  REWARD = 'REWARD'
 }
 
 export type DifficultyLevel = 'Basic' | 'CET-4' | 'CET-6' | 'IELTS' | 'TOEFL';
@@ -20,25 +23,54 @@ export interface Word {
   phonetic: string;
   definition: string;
   example: string;
-  exampleTranslation: string; 
-  translation: string; 
-  difficulty: DifficultyLevel; 
-  tags: string[]; 
-  
+  exampleTranslation: string;
+  translation: string;
+  difficulty: DifficultyLevel;
+  tags: string[];
+  etymology?: string;
+}
+
+export interface MapNode {
+  id: string;
+  name: string;
+  location: string;
+  type: 'story' | 'battle' | 'boss';
+  description: string;
+  script?: {
+    en: string;
+    zh: string;
+  }[];
+  wordCount?: number;
+  medalsRequired?: number;
+  isUnlocked?: boolean;
 }
 
 export interface LevelData {
   title: string;
-  introStory: string[]; 
+  introStory: { en: string; zh: string }[];
   words: Word[];
   bossName: string;
   theme: string;
+  type: 'story' | 'battle' | 'boss';
+  isReplay: boolean;
 }
 
-export interface PlayerStats {
+export interface Medal {
+  id: string;
+  name: string;
+  image: string;
+  description: string;
+  isUnlocked: boolean;
+}
+
+export interface Player {
+  id: string;
   level: number;
   exp: number;
-  maxExp: number;
-  coins: number;
-  avatarId: number;
+  gems: number;
+  potions: number;
+  medals: number;
+  completedNodes: string[];
+  ownedSkins: SkinId[];
+  equippedSkin: SkinId;
 }
